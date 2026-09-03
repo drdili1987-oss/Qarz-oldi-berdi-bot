@@ -1,0 +1,9 @@
+﻿.env
+__pycache__/
+*.pyc
+firebase_credentials.json
+userbot.session*
+venv/
+.idea/
+.vscode/
+qarzbot/

@@ -1,0 +1,23 @@
+services:
+  - type: worker
+    name: qarz-bot
+    env: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: BOT_USERNAME
+        sync: false
+      - key: ADMIN_IDS
+        sync: false
+      - key: FIREBASE_DB_URL
+        sync: false
+      - key: FIREBASE_CREDENTIALS_JSON
+        sync: false
+      - key: REMINDER_INTERVAL_DAYS
+        value: "3"
+      - key: REMINDER_CHECK_INTERVAL_HOURS
+        value: "24"
