@@ -398,8 +398,8 @@ TEXTS = {
         "registered_welcome": "Қош келдіңіз, {name}! ✅\nСіз сәтті тіркелдіңіз.",
         "main_menu_title": "🏠 Басты мәзір",
 
-        "btn_creditors": "👥 Несие берушілерім",
-        "btn_debtors": "👤 Борышқорларым",
+        "btn_creditors": "📈 Несие берушілер",
+        "btn_debtors": "📉 Борышқорлар",
         "btn_history": "📊 Қарыздар тарихы",
         "btn_income": "📥 Кіріс",
         "btn_outcome": "📤 Шығыс",
