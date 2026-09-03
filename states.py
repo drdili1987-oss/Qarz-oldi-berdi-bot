@@ -12,6 +12,7 @@ class AddDebt(StatesGroup):
     choosing_currency = State()
     entering_amount = State()
     entering_description = State()
+    entering_due_date = State()
 
 
 class FinanceOperation(StatesGroup):

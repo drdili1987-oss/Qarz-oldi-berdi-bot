@@ -161,6 +161,7 @@ def create_debt(
     status: str = "pending",
     phone: Optional[str] = None,
     description: Optional[str] = None,
+    due_date: Optional[str] = None,
 ) -> str:
     debt_id = str(uuid.uuid4())
     debt_data = {
@@ -171,6 +172,7 @@ def create_debt(
         "currency": currency,
         "status": status,
         "description": description or "",
+        "due_date": due_date,
         "last_notified_at": _now_iso(),
         "created_at": _now_iso(),
     }

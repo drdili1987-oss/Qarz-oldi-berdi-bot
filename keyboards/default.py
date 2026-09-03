@@ -71,5 +71,20 @@ def skip_description_keyboard(lang: str) -> ReplyKeyboardMarkup:
     )
 
 
+def due_date_keyboard(lang: str) -> ReplyKeyboardMarkup:
+    t = TEXTS.get(lang, TEXTS["uz"])
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=t.get("btn_1_week", "1 hafta")), KeyboardButton(text=t.get("btn_1_month", "1 oy"))],
+            [KeyboardButton(text=t.get("btn_no_due_date", "Muddat yo'q"))],
+            [
+                KeyboardButton(text=t.get("btn_main_menu", "🏠 Asosiy menyu")),
+                KeyboardButton(text=t["btn_cancel"]),
+            ],
+        ],
+        resize_keyboard=True,
+    )
+
+
 def remove_keyboard() -> ReplyKeyboardRemove:
     return ReplyKeyboardRemove()

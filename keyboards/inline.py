@@ -91,11 +91,18 @@ def broadcast_confirm_keyboard(lang: str) -> InlineKeyboardMarkup:
 def share_debt_keyboard(link: str, text: str, phone: str = "", lang: str = "uz") -> InlineKeyboardMarkup:
     import urllib.parse
     t = TEXTS.get(lang, TEXTS["uz"])
-    encoded_text = urllib.parse.quote_plus(text)
-    share_url = f"https://t.me/share/url?url={urllib.parse.quote_plus(link)}&text={encoded_text}"
+    
+    # Telegram ulashish
+    encoded_text_tg = urllib.parse.quote_plus(text)
+    share_url = f"https://t.me/share/url?url={urllib.parse.quote_plus(link)}&text={encoded_text_tg}"
+    
+    # SMS orqali ulashish (Veb sahifaga yo'naltirish)
+    encoded_text_sms = urllib.parse.quote(text)
+    sms_url = f"https://drdili1987-oss.github.io/Qarz-oldi-berdi-bot/?text={encoded_text_sms}"
 
     buttons = [
-        [InlineKeyboardButton(text="📲 Telegramda ulashish", url=share_url)],
+        [InlineKeyboardButton(text="✈️ Telegramda ulashish", url=share_url)],
+        [InlineKeyboardButton(text="📱 SMS orqali ulashish", url=sms_url)],
         [InlineKeyboardButton(text=t.get("btn_main_menu", "🏠 Asosiy menyu"), callback_data="to_main_menu")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)

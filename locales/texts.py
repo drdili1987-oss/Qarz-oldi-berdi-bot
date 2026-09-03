@@ -15,8 +15,8 @@ TEXTS = {
         "main_menu_title": "🏠 Asosiy menyu",
 
         # --- Tugmalar ---
-        "btn_creditors": "👥 Haqdorlarim",
-        "btn_debtors": "👤 Qarzdorlarim",
+        "btn_creditors": "🔴⬆️ Haqdorlar",
+        "btn_debtors": "🟢⬇️ Qarzdorlar",
         "btn_history": "📊 Qarzlar tarixi",
         "btn_income": "📥 Kirim",
         "btn_outcome": "📤 Chiqim",
@@ -60,9 +60,15 @@ TEXTS = {
         "invalid_amount": "Noto'g'ri summa. Iltimos, musbat raqam kiriting:",
         "role_creditor": "sizdan qarzdor bo'lishni",
         "role_debtor": "sizga qarz berishni",
+        "enter_description": "Qarz uchun izoh kiriting (ixtiyoriy).\nMasalan: <i>Tushlik uchun</i>",
+        "enter_due_date": "Qarz qaytarish muddatini tanlang yoki YYYY-MM-DD formatida kiriting (masalan: 2026-12-31):",
+        "btn_1_week": "1 hafta",
+        "btn_1_month": "1 oy",
+        "btn_no_due_date": "Muddat yo'q",
         "debt_confirm_request": (
-            "🔔 <b>{name}</b> sizni {role} bildirdi.\n"
-            "Summasi: <b>{amount} {currency}</b>\n\n"
+            "<b>{name}</b> ({role}) sizga yangi qarz so'rovini yubordi.\n\n"
+            "💰 Miqdor: <b>{amount} {currency}</b>\n"
+            "Muddat: {due_date}\n\n"
             "Tasdiqlaysizmi?"
         ),
         "debt_incoming_request": (
