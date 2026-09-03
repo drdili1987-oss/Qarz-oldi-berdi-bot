@@ -9,6 +9,7 @@ from keyboards.default import (
     language_keyboard,
     main_menu_keyboard,
     phone_keyboard,
+    gender_keyboard,
     remove_keyboard,
     LANGUAGE_BUTTONS,
 )
@@ -18,9 +19,7 @@ from states import Registration
 
 router = Router(name="start")
 
-
 async def _send_pending_debt_request(bot: Bot, debt_id: str, target_user_id: int) -> None:
-    """Deep-link orqali kelgan foydalanuvchiga tasdiqlash so'rovini yuboradi."""
     debt = db.get_debt(debt_id)
     if not debt or debt.get("status") != "pending":
         return
@@ -110,9 +109,63 @@ async def process_name(message: Message, state: FSMContext) -> None:
         return
 
     await state.update_data(full_name=full_name)
+    await state.set_state(Registration.entering_age)
+    await message.answer(TEXTS[lang].get("age_request", "Yoshingizni kiriting (masalan, 25):"))
+
+
+@router.message(Registration.entering_age, F.text)
+async def process_age(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    lang = data["language"]
+    text = message.text.strip()
+    
+    if not text.isdigit():
+        await message.answer(TEXTS[lang].get("invalid_age", "Iltimos, faqat raqam kiriting."))
+        return
+        
+    await state.update_data(age=int(text))
+    await state.set_state(Registration.choosing_gender)
+    await message.answer(TEXTS[lang].get("gender_request", "Jinsingizni tanlang:"), reply_markup=gender_keyboard(lang))
+
+@router.message(Registration.choosing_gender, F.text)
+async def process_gender(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    lang = data["language"]
+    gender = message.text.strip()
+    
+    await state.update_data(gender=gender)
+    await state.set_state(Registration.entering_country)
+    await message.answer(TEXTS[lang].get("country_request", "Qaysi davlatdansiz?"), reply_markup=remove_keyboard())
+
+@router.message(Registration.entering_country, F.text)
+async def process_country(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    lang = data["language"]
+    country = message.text.strip()
+    
+    await state.update_data(country=country)
+    await state.set_state(Registration.entering_city)
+    await message.answer(TEXTS[lang].get("city_request", "Qaysi shahardansiz?"))
+
+@router.message(Registration.entering_city, F.text)
+async def process_city(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    lang = data["language"]
+    city = message.text.strip()
+    
+    await state.update_data(city=city)
+    await state.set_state(Registration.entering_occupation)
+    await message.answer(TEXTS[lang].get("occupation_request", "Kasbingiz nima?"))
+
+@router.message(Registration.entering_occupation, F.text)
+async def process_occupation(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    lang = data["language"]
+    occupation = message.text.strip()
+    
+    await state.update_data(occupation=occupation)
     await state.set_state(Registration.entering_phone)
     await message.answer(TEXTS[lang]["phone_request"], reply_markup=phone_keyboard(lang))
-
 
 @router.message(Registration.entering_phone, F.content_type == ContentType.CONTACT)
 async def process_phone(message: Message, state: FSMContext, bot: Bot) -> None:
@@ -130,6 +183,11 @@ async def process_phone(message: Message, state: FSMContext, bot: Bot) -> None:
         phone_number=message.contact.phone_number,
         language=lang,
         username=message.from_user.username or "",
+        age=data.get("age", 0),
+        gender=data.get("gender", ""),
+        country=data.get("country", ""),
+        city=data.get("city", ""),
+        occupation=data.get("occupation", "")
     )
 
     payload = data.get("deep_link_payload", "")

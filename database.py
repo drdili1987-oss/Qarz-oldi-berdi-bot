@@ -81,6 +81,11 @@ def create_user(
     phone_number: str,
     language: str,
     username: str = "",
+    age: int = 0,
+    gender: str = "",
+    country: str = "",
+    city: str = "",
+    occupation: str = "",
 ) -> None:
     db.reference(f"{USERS_REF}/{user_id}").set(
         {
@@ -89,6 +94,11 @@ def create_user(
             "phone_number": phone_number,
             "username": username or "",
             "language": language,
+            "age": age,
+            "gender": gender,
+            "country": country,
+            "city": city,
+            "occupation": occupation,
             "created_at": _now_iso(),
         }
     )
@@ -284,11 +294,48 @@ def get_history_by_user(user_id: int) -> list:
 def get_stats() -> dict:
     users = get_all_users()
     debts = get_all_debts()
+    
+    # Demografiya
+    male_count = 0
+    female_count = 0
+    countries = {}
+    cities = {}
+    occupations = {}
+    
+    for u in users.values():
+        g = u.get("gender", "").lower()
+        if g in ["erkak", "мужской", "еркек", "male"]:
+            male_count += 1
+        elif g in ["ayol", "женский", "әйел", "female"]:
+            female_count += 1
+            
+        c = u.get("country", "").strip().title()
+        if c:
+            countries[c] = countries.get(c, 0) + 1
+            
+        city = u.get("city", "").strip().title()
+        if city:
+            cities[city] = cities.get(city, 0) + 1
+            
+        occ = u.get("occupation", "").strip().title()
+        if occ:
+            occupations[occ] = occupations.get(occ, 0) + 1
+
+    top_countries = sorted(countries.items(), key=lambda x: x[1], reverse=True)[:5]
+    top_cities = sorted(cities.items(), key=lambda x: x[1], reverse=True)[:5]
+    top_occupations = sorted(occupations.items(), key=lambda x: x[1], reverse=True)[:5]
+
     active_debts = [d for d in debts.values() if d.get("status") == "active"]
-    total_uzs = sum(d.get("amount", 0) for d in active_debts if d.get("currency") == "UZS")
-    total_usd = sum(d.get("amount", 0) for d in active_debts if d.get("currency") == "USD")
+    total_uzs = sum(float(d.get("amount", 0)) for d in active_debts if d.get("currency") == "UZS")
+    total_usd = sum(float(d.get("amount", 0)) for d in active_debts if d.get("currency") == "USD")
+    
     return {
         "total_users": len(users),
+        "male_count": male_count,
+        "female_count": female_count,
+        "top_countries": top_countries,
+        "top_cities": top_cities,
+        "top_occupations": top_occupations,
         "active_debts_count": len(active_debts),
         "total_uzs": total_uzs,
         "total_usd": total_usd,

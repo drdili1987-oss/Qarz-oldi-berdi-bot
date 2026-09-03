@@ -32,6 +32,24 @@ async def cmd_stats(message: Message) -> None:
         total_uzs=db.format_amount(stats["total_uzs"]),
         total_usd=db.format_amount(stats["total_usd"]),
     )
+    
+    # Qo'shimcha demografiya
+    text += "\n\n📊 <b>Demografiya (Foydalanuvchilar portreti)</b>:\n"
+    text += f"👨 Erkaklar: {stats.get('male_count', 0)} ta\n"
+    text += f"👩 Ayollar: {stats.get('female_count', 0)} ta\n\n"
+    
+    text += "🌍 <b>Top davlatlar</b>:\n"
+    for c, count in stats.get('top_countries', []):
+        text += f" - {c}: {count} ta\n"
+        
+    text += "\n🏙 <b>Top shaharlar</b>:\n"
+    for c, count in stats.get('top_cities', []):
+        text += f" - {c}: {count} ta\n"
+        
+    text += "\n💼 <b>Kasb va sohalar</b>:\n"
+    for occ, count in stats.get('top_occupations', []):
+        text += f" - {occ}: {count} ta\n"
+
     await message.answer(text)
 
 
