@@ -91,23 +91,23 @@ class UserBotService:
         clean_phone = digits
 
         try:
-            contact = InputPhoneContact(client_id=0, phone=clean_phone, first_name="Client", last_name="")
-            res = await self.client(ImportContactsRequest([contact]))
-            if not res.users:
-                return False, "Bu telefon raqam Telegramda ro'yxatdan o'tmagan", None
+            try:
+                # Avval raqam bo'yicha topishga urinamiz
+                user = await self.client.get_entity(clean_phone)
+            except Exception:
+                # Agar topilmasa, kontaktga saqlab yozamiz
+                contact = InputPhoneContact(client_id=0, phone=clean_phone, first_name="Kontakt", last_name="")
+                res = await self.client(ImportContactsRequest([contact]))
+                if not res.users:
+                    return False, "Bu telefon raqam Telegramda ro'yxatdan o'tmagan", None
+                user = res.users[0]
 
-            user = res.users[0]
             try:
                 await self.client.send_message(user, message, parse_mode="html")
             except UserPrivacyRestrictedError:
                 return False, "Foydalanuvchi shaxsiyiga yozish taqiqlangan (Privacy settings)", user.id
 
-            # Kontaktlar to'lib ketmasligi uchun o'chirib qo'yamiz
-            try:
-                await self.client(DeleteContactsRequest(id=[user.id]))
-            except Exception:
-                pass
-
+            # Kontaktlarni o'chirish kodini olib tashladik, chunki u foydalanuvchining o'z kontaktlarini ham o'chirib yuborishi mumkin edi.
             return True, "Shaxsiyiga xabar yuborildi", user.id
 
         except FloodWaitError as e:
