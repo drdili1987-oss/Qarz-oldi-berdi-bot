@@ -35,8 +35,11 @@ def main_menu_keyboard(lang: str) -> ReplyKeyboardMarkup:
     t = TEXTS[lang]
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text=t["btn_creditors"]), KeyboardButton(text=t["btn_debtors"])],
-            [KeyboardButton(text=t["btn_history"])],
+            [
+                KeyboardButton(text=t["btn_creditors"], style="danger"), 
+                KeyboardButton(text=t["btn_debtors"], style="success")
+            ],
+            [KeyboardButton(text=t["btn_history"], style="primary")],
             [KeyboardButton(text=t["btn_income"]), KeyboardButton(text=t["btn_outcome"])],
             [KeyboardButton(text=t["btn_settings"]), KeyboardButton(text=t["btn_donat"])],
         ],
