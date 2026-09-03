@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMS Taklif</title>
+    <script>
+        window.onload = function() {
+            // URL ssilkadan 'text' qiymatini o'qib olamiz
+            const params = new URLSearchParams(window.location.search);
+            const text = params.get('text');
+            
+            if (text) {
+                // SMS protokoli orqali telefonning SMS ilovasini ochamiz
+                window.location.href = "sms:?body=" + encodeURIComponent(text);
+            } else {
+                document.body.innerHTML = "<h3>Xatolik: Taklif matni topilmadi!</h3>";
+            }
+        };
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding-top: 50px;
+            background-color: #f4f4f9;
+        }
+        h2 { color: #333; }
+        p { color: #666; }
+    </style>
+</head>
+<body>
+    <h2>SMS ilovasiga yo'naltirilmoqda... 📲</h2>
+    <p>Iltimos, kuting.</p>
+</body>
+</html>

@@ -108,6 +108,18 @@ def settings_keyboard(lang: str = "uz", user_id: int = None) -> InlineKeyboardMa
         [InlineKeyboardButton(text="📱 Do'stlarni taklif qilish", callback_data="invite_friends")]
     ]
     
+    if user_id:
+        import urllib.parse
+        import config
+        bot_username = config.BOT_USERNAME or "bot"
+        invite_text = f"Salom! Qarz va pullarni oson hisob-kitob qilish uchun Qarzbot'ga kiring: https://t.me/{bot_username}?start=ref_{user_id}"
+        # Telegram uchun to'g'ri keluvchi formatga o'giramiz
+        encoded_text = urllib.parse.quote(invite_text)
+        
+        # O'zimizning GitHub Pages veb-saytimizga yo'naltiramiz
+        redirect_url = f"https://drdili1987-oss.github.io/Qarz-oldi-berdi-bot/?text={encoded_text}"
+        buttons.append([InlineKeyboardButton(text="📱 SMS orqali do'stlarni taklif qilish", url=redirect_url)])
+
     buttons.append([InlineKeyboardButton(text=t.get("btn_main_menu", "🏠 Asosiy menyu"), callback_data="to_main_menu")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
