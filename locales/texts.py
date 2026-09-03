@@ -15,8 +15,8 @@ TEXTS = {
         "main_menu_title": "🏠 Asosiy menyu",
 
         # --- Tugmalar ---
-        "btn_creditors": "⬆️ Haqdorlar",
-        "btn_debtors": "⬇️ Qarzdorlar",
+        "btn_creditors": "📈 Haqdorlar",
+        "btn_debtors": "📉 Qarzdorlar",
         "btn_history": "📊 Qarzlar tarixi",
         "btn_income": "📥 Kirim",
         "btn_outcome": "📤 Chiqim",
@@ -216,8 +216,8 @@ TEXTS = {
         "registered_welcome": "Добро пожаловать, {name}! ✅\nВы успешно зарегистрированы.",
         "main_menu_title": "🏠 Главное меню",
 
-        "btn_creditors": "⬆️ Мои кредиторы",
-        "btn_debtors": "⬇️ Мои должники",
+        "btn_creditors": "📈 Мои кредиторы",
+        "btn_debtors": "📉 Мои должники",
         "btn_history": "📊 История долгов",
         "btn_income": "📥 Приход",
         "btn_outcome": "📤 Расход",
@@ -579,8 +579,8 @@ TEXTS = {
         "invalid_contact": "Please send your own contact.",
         "registered_welcome": "Welcome, {name}! ✅\nYou have successfully registered.",
         "main_menu_title": "🏠 Main Menu",
-        "btn_creditors": "⬆️ My Creditors",
-        "btn_debtors": "⬇️ My Debtors",
+        "btn_creditors": "📈 My Creditors",
+        "btn_debtors": "📉 My Debtors",
         "btn_history": "📊 Debt History",
         "btn_income": "📥 Income",
         "btn_outcome": "📤 Outcome",
