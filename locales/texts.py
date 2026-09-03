@@ -84,7 +84,7 @@ TEXTS = {
             "Summasi: <b>{amount} {currency}</b>\n\n"
             "Tasdiqlaysizmi?"
         ),
-        "debt_request_sent": "So'rov yuborildi. Tasdiqlashini kuting.",
+        "debt_request_sent": "✅ Qarzdor allaqachon botdan ro'yxatdan o'tgan!\nUnga to'g'ridan-to'g'ri bot orqali tasdiqlash xabari yuborildi! Tasdiqlashini kuting.",
         "debt_request_send_failed": (
             "So'rovni yuborib bo'lmadi. Ehtimol, foydalanuvchi botni bloklagan."
         ),
