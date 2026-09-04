@@ -34,6 +34,14 @@ async def main() -> None:
 
     await userbot_service.start()
 
+    # Bazadagi foydalanuvchilar va ma'lumotlarni keshga yuklash (tez ishlashi uchun)
+    try:
+        import database as db
+        db.get_all_users()
+        logger.info("Foydalanuvchilar keshi muvaffaqiyatli yuklandi.")
+    except Exception as e:
+        logger.warning(f"Keshni yuklashda xatolik: {e}")
+
     try:
         logger.info("Bot ishga tushmoqda (long polling)...")
         await bot.delete_webhook(drop_pending_updates=True)

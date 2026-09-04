@@ -1,5 +1,6 @@
 """
 Firebase Realtime Database bilan ishlash uchun barcha funksiyalar.
+Kesh (In-memory caching) bilan tezlashtirilgan.
 
 Baza strukturasi:
     users/{user_id}   -> user_id, full_name, phone_number, username, language, created_at
@@ -11,8 +12,10 @@ Baza strukturasi:
 """
 
 import json
+import logging
 import os
 import re
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -22,9 +25,25 @@ from firebase_admin import credentials, db
 
 from config import FIREBASE_CREDENTIALS_JSON, FIREBASE_CREDENTIALS_PATH, FIREBASE_DB_URL
 
+logger = logging.getLogger(__name__)
+
 USERS_REF = "users"
 DEBTS_REF = "debts"
 HISTORY_REF = "history"
+
+# ==================== IN-MEMORY KESH ====================
+_USERS_CACHE: dict = {}
+_USER_LANGS: dict = {}
+_PHONES_CACHE: dict = {}
+_USERNAMES_CACHE: dict = {}
+
+_DEBTS_CACHE: Optional[dict] = None
+_DEBTS_CACHE_TIME: float = 0.0
+
+_HISTORY_CACHE: Optional[dict] = None
+_HISTORY_CACHE_TIME: float = 0.0
+
+CACHE_TTL = 15.0  # Debts va History uchun kesh vaqti (soniya)
 
 
 def format_amount(amount) -> str:
@@ -68,7 +87,22 @@ def _now_iso() -> str:
 def get_user(user_id: int) -> Optional[dict]:
     if not user_id:
         return None
-    return db.reference(f"{USERS_REF}/{user_id}").get()
+    uid_str = str(user_id)
+    if uid_str in _USERS_CACHE:
+        return _USERS_CACHE[uid_str]
+
+    user_data = db.reference(f"{USERS_REF}/{uid_str}").get()
+    if user_data:
+        _USERS_CACHE[uid_str] = user_data
+        if "language" in user_data:
+            _USER_LANGS[uid_str] = user_data["language"]
+        if "phone_number" in user_data:
+            clean = normalize_phone(user_data["phone_number"])
+            if clean:
+                _PHONES_CACHE[clean] = uid_str
+        if "username" in user_data and user_data["username"]:
+            _USERNAMES_CACHE[user_data["username"].lstrip("@").lower()] = uid_str
+    return user_data
 
 
 def user_exists(user_id: int) -> bool:
@@ -87,35 +121,54 @@ def create_user(
     city: str = "",
     occupation: str = "",
 ) -> None:
-    db.reference(f"{USERS_REF}/{user_id}").set(
-        {
-            "user_id": str(user_id),
-            "full_name": full_name,
-            "phone_number": phone_number,
-            "username": username or "",
-            "language": language,
-            "age": age,
-            "gender": gender,
-            "country": country,
-            "city": city,
-            "occupation": occupation,
-            "created_at": _now_iso(),
-        }
-    )
-    if username:
-        db.reference(f"usernames/{username.lstrip('@').lower()}").set(str(user_id))
+    uid_str = str(user_id)
+    user_data = {
+        "user_id": uid_str,
+        "full_name": full_name,
+        "phone_number": phone_number,
+        "username": username or "",
+        "language": language,
+        "age": age,
+        "gender": gender,
+        "country": country,
+        "city": city,
+        "occupation": occupation,
+        "created_at": _now_iso(),
+    }
+    # Keshga saqlash
+    _USERS_CACHE[uid_str] = user_data
+    _USER_LANGS[uid_str] = language
     clean_phone = normalize_phone(phone_number)
     if clean_phone:
-        db.reference(f"phones/{clean_phone}").set(str(user_id))
+        _PHONES_CACHE[clean_phone] = uid_str
+    if username:
+        _USERNAMES_CACHE[username.lstrip("@").lower()] = uid_str
+
+    # Firebase'ga yozish
+    db.reference(f"{USERS_REF}/{uid_str}").set(user_data)
+    if username:
+        db.reference(f"usernames/{username.lstrip('@').lower()}").set(uid_str)
+    if clean_phone:
+        db.reference(f"phones/{clean_phone}").set(uid_str)
 
 
 def update_user_language(user_id: int, language: str) -> None:
-    db.reference(f"{USERS_REF}/{user_id}/language").set(language)
+    uid_str = str(user_id)
+    _USER_LANGS[uid_str] = language
+    if uid_str in _USERS_CACHE:
+        _USERS_CACHE[uid_str]["language"] = language
+    db.reference(f"{USERS_REF}/{uid_str}/language").set(language)
 
 
 def get_user_language(user_id: int) -> str:
-    lang = db.reference(f"{USERS_REF}/{user_id}/language").get()
-    return lang if lang in ("uz", "ru", "kk", "en") else "uz"
+    uid_str = str(user_id)
+    if uid_str in _USER_LANGS:
+        return _USER_LANGS[uid_str]
+    user = get_user(user_id)
+    if user and "language" in user:
+        lang = user["language"]
+        return lang if lang in ("uz", "ru", "kk", "en") else "uz"
+    return "uz"
 
 
 def normalize_phone(phone: str) -> str:
@@ -129,14 +182,19 @@ def find_user_by_phone(phone: str) -> Optional[dict]:
     clean = normalize_phone(phone)
     if not clean:
         return None
+
+    if clean in _PHONES_CACHE:
+        return get_user(int(_PHONES_CACHE[clean]))
+
     uid = db.reference(f"phones/{clean}").get()
     if uid:
-        user = get_user(uid)
-        if user:
-            return user
+        _PHONES_CACHE[clean] = str(uid)
+        return get_user(int(uid))
+
     all_users = get_all_users()
-    for _, udata in all_users.items():
+    for uid_str, udata in all_users.items():
         if normalize_phone(udata.get("phone_number", "")) == clean:
+            _PHONES_CACHE[clean] = uid_str
             return udata
     return None
 
@@ -145,23 +203,52 @@ def find_user_by_username(username: str) -> Optional[dict]:
     username = username.lstrip("@").lower()
     if not username:
         return None
+
+    if username in _USERNAMES_CACHE:
+        return get_user(int(_USERNAMES_CACHE[username]))
+
     uid = db.reference(f"usernames/{username}").get()
     if uid:
-        user = get_user(uid)
-        if user:
-            return user
-    all_users = db.reference(USERS_REF).get() or {}
-    for _, udata in all_users.items():
+        _USERNAMES_CACHE[username] = str(uid)
+        return get_user(int(uid))
+
+    all_users = get_all_users()
+    for uid_str, udata in all_users.items():
         if str(udata.get("username", "")).lower() == username:
+            _USERNAMES_CACHE[username] = uid_str
             return udata
     return None
 
 
 def get_all_users() -> dict:
-    return db.reference(USERS_REF).get() or {}
+    global _USERS_CACHE
+    users = db.reference(USERS_REF).get() or {}
+    for uid_str, udata in users.items():
+        _USERS_CACHE[uid_str] = udata
+        if "language" in udata:
+            _USER_LANGS[uid_str] = udata["language"]
+        if "phone_number" in udata:
+            clean = normalize_phone(udata["phone_number"])
+            if clean:
+                _PHONES_CACHE[clean] = uid_str
+        if "username" in udata and udata["username"]:
+            _USERNAMES_CACHE[udata["username"].lstrip("@").lower()] = uid_str
+    return users
 
 
 # ==================== DEBTS ====================
+
+def get_all_debts() -> dict:
+    global _DEBTS_CACHE, _DEBTS_CACHE_TIME
+    now = time.time()
+    if _DEBTS_CACHE is not None and (now - _DEBTS_CACHE_TIME) < CACHE_TTL:
+        return _DEBTS_CACHE
+
+    debts = db.reference(DEBTS_REF).get() or {}
+    _DEBTS_CACHE = debts
+    _DEBTS_CACHE_TIME = now
+    return _DEBTS_CACHE
+
 
 def create_debt(
     debtor_id: Optional[int],
@@ -173,6 +260,7 @@ def create_debt(
     description: Optional[str] = None,
     due_date: Optional[str] = None,
 ) -> str:
+    global _DEBTS_CACHE
     debt_id = str(uuid.uuid4())
     debt_data = {
         "debt_id": debt_id,
@@ -188,43 +276,62 @@ def create_debt(
     }
     if phone:
         debt_data["phone"] = phone
+
+    if _DEBTS_CACHE is not None:
+        _DEBTS_CACHE[debt_id] = debt_data
+
     db.reference(f"{DEBTS_REF}/{debt_id}").set(debt_data)
     return debt_id
 
 
 def get_debt(debt_id: str) -> Optional[dict]:
+    if _DEBTS_CACHE is not None and debt_id in _DEBTS_CACHE:
+        d = dict(_DEBTS_CACHE[debt_id])
+        d["debt_id"] = debt_id
+        return d
     debt = db.reference(f"{DEBTS_REF}/{debt_id}").get()
     if debt:
         debt["debt_id"] = debt_id
+        if _DEBTS_CACHE is not None:
+            _DEBTS_CACHE[debt_id] = debt
     return debt
 
 
 def update_debt_status(debt_id: str, status: str) -> None:
+    if _DEBTS_CACHE is not None and debt_id in _DEBTS_CACHE:
+        _DEBTS_CACHE[debt_id]["status"] = status
     db.reference(f"{DEBTS_REF}/{debt_id}/status").set(status)
 
 
 def update_debt_amount(debt_id: str, new_amount: float) -> None:
+    if _DEBTS_CACHE is not None and debt_id in _DEBTS_CACHE:
+        _DEBTS_CACHE[debt_id]["amount"] = new_amount
     db.reference(f"{DEBTS_REF}/{debt_id}/amount").set(new_amount)
 
 
 def update_debt_notified(debt_id: str) -> None:
-    db.reference(f"{DEBTS_REF}/{debt_id}/last_notified_at").set(_now_iso())
+    iso_now = _now_iso()
+    if _DEBTS_CACHE is not None and debt_id in _DEBTS_CACHE:
+        _DEBTS_CACHE[debt_id]["last_notified_at"] = iso_now
+    db.reference(f"{DEBTS_REF}/{debt_id}/last_notified_at").set(iso_now)
 
 
 def set_debt_debtor(debt_id: str, debtor_id: int) -> None:
+    if _DEBTS_CACHE is not None and debt_id in _DEBTS_CACHE:
+        _DEBTS_CACHE[debt_id]["debtor_id"] = debtor_id
     db.reference(f"{DEBTS_REF}/{debt_id}/debtor_id").set(debtor_id)
 
 
 def set_debt_creditor(debt_id: str, creditor_id: int) -> None:
+    if _DEBTS_CACHE is not None and debt_id in _DEBTS_CACHE:
+        _DEBTS_CACHE[debt_id]["creditor_id"] = creditor_id
     db.reference(f"{DEBTS_REF}/{debt_id}/creditor_id").set(creditor_id)
 
 
 def delete_debt(debt_id: str) -> None:
+    if _DEBTS_CACHE is not None and debt_id in _DEBTS_CACHE:
+        _DEBTS_CACHE.pop(debt_id, None)
     db.reference(f"{DEBTS_REF}/{debt_id}").delete()
-
-
-def get_all_debts() -> dict:
-    return db.reference(DEBTS_REF).get() or {}
 
 
 def get_debts_by_debtor(user_id: int, status: Optional[str] = None) -> list:
@@ -251,6 +358,18 @@ def get_debts_by_creditor(user_id: int, status: Optional[str] = None) -> list:
 
 # ==================== HISTORY ====================
 
+def get_all_history() -> dict:
+    global _HISTORY_CACHE, _HISTORY_CACHE_TIME
+    now = time.time()
+    if _HISTORY_CACHE is not None and (now - _HISTORY_CACHE_TIME) < CACHE_TTL:
+        return _HISTORY_CACHE
+
+    history = db.reference(HISTORY_REF).get() or {}
+    _HISTORY_CACHE = history
+    _HISTORY_CACHE_TIME = now
+    return _HISTORY_CACHE
+
+
 def add_history(
     debt_id: str,
     from_user: int,
@@ -260,28 +379,32 @@ def add_history(
     currency: str,
     status: str = "confirmed",
 ) -> str:
+    global _HISTORY_CACHE
     trans_id = str(uuid.uuid4())
-    db.reference(f"{HISTORY_REF}/{trans_id}").set(
-        {
-            "trans_id": trans_id,
-            "debt_id": debt_id,
-            "from_user": str(from_user),
-            "to_user": str(to_user),
-            "type": type_,
-            "amount": amount,
-            "currency": currency,
-            "status": status,
-            "timestamp": _now_iso(),
-        }
-    )
+    data = {
+        "trans_id": trans_id,
+        "debt_id": debt_id,
+        "from_user": str(from_user),
+        "to_user": str(to_user),
+        "type": type_,
+        "amount": amount,
+        "currency": currency,
+        "status": status,
+        "timestamp": _now_iso(),
+    }
+    if _HISTORY_CACHE is not None:
+        _HISTORY_CACHE[trans_id] = data
+
+    db.reference(f"{HISTORY_REF}/{trans_id}").set(data)
     return trans_id
 
 
 def get_history_by_user(user_id: int) -> list:
-    all_history = db.reference(HISTORY_REF).get() or {}
+    all_history = get_all_history()
     result = []
+    uid_str = str(user_id)
     for trans_id, h in all_history.items():
-        if str(h.get("from_user")) == str(user_id) or str(h.get("to_user")) == str(user_id):
+        if str(h.get("from_user")) == uid_str or str(h.get("to_user")) == uid_str:
             h = dict(h)
             h["trans_id"] = trans_id
             result.append(h)
@@ -294,29 +417,28 @@ def get_history_by_user(user_id: int) -> list:
 def get_stats() -> dict:
     users = get_all_users()
     debts = get_all_debts()
-    
-    # Demografiya
+
     male_count = 0
     female_count = 0
     countries = {}
     cities = {}
     occupations = {}
-    
+
     for u in users.values():
         g = u.get("gender", "").lower()
         if g in ["erkak", "мужской", "еркек", "male"]:
             male_count += 1
         elif g in ["ayol", "женский", "әйел", "female"]:
             female_count += 1
-            
+
         c = u.get("country", "").strip().title()
         if c:
             countries[c] = countries.get(c, 0) + 1
-            
+
         city = u.get("city", "").strip().title()
         if city:
             cities[city] = cities.get(city, 0) + 1
-            
+
         occ = u.get("occupation", "").strip().title()
         if occ:
             occupations[occ] = occupations.get(occ, 0) + 1
@@ -328,7 +450,7 @@ def get_stats() -> dict:
     active_debts = [d for d in debts.values() if d.get("status") == "active"]
     total_uzs = sum(float(d.get("amount", 0)) for d in active_debts if d.get("currency") == "UZS")
     total_usd = sum(float(d.get("amount", 0)) for d in active_debts if d.get("currency") == "USD")
-    
+
     return {
         "total_users": len(users),
         "male_count": male_count,
