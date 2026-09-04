@@ -15,7 +15,11 @@ TEXTS = {
         "city_request": "Qaysi shahardansiz?",
         "occupation_request": "Kasbingiz yoki sohangiz nima? (masalan: Dasturchi, Talaba, Haydovchi...)",
         "invalid_name": "Ism juda qisqa. Qaytadan kiriting:",
-        "phone_request": "Endi telefon raqamingizni yuboring 👇",
+        "phone_request": (
+            "📱 <b>Telefon raqamingizni yuboring:</b>\n\n"
+            "Quyidagi «📱 Raqamni yuborish» tugmasini bosing yoki raqamingizni yozib yuboring (masalan: <code>+998901234567</code>).\n\n"
+            "🔒 <i><b>Xavfsizlik kafolati:</b> Raqamingiz faqat haqdor/qarzdor sizni aniqlashi uchun kerak. Bot shaxsiy parollar yoki bank ma'lumotlariga kira olmaydi.</i>"
+        ),
         "send_contact_btn": "📱 Raqamni yuborish",
         "invalid_phone": "Iltimos, «📱 Raqamni yuborish» tugmasi orqali kontakt yuboring.",
         "invalid_contact": "Iltimos, o'zingizning kontaktingizni yuboring, boshqa birovnikini emas.",
@@ -225,7 +229,11 @@ TEXTS = {
         "city_request": "Из какого вы города?",
         "occupation_request": "Ваша профессия или сфера деятельности? (например: Программист, Студент...)",
         "invalid_name": "Имя слишком короткое. Введите заново:",
-        "phone_request": "Теперь отправьте номер телефона 👇",
+        "phone_request": (
+            "📱 <b>Отправьте ваш номер телефона:</b>\n\n"
+            "Нажмите кнопку «📱 Отправить номер» ниже или введите номер вручную (например: <code>+998901234567</code>).\n\n"
+            "🔒 <i><b>Гарантия безопасности:</b> Ваш номер используется только для связи между должником и кредитором. Бот не имеет доступа к личным паролям и банковским картам.</i>"
+        ),
         "send_contact_btn": "📱 Отправить номер",
         "invalid_phone": "Пожалуйста, отправьте контакт через кнопку «📱 Отправить номер».",
         "invalid_contact": "Пожалуйста, отправьте свой собственный контакт.",
@@ -415,7 +423,11 @@ TEXTS = {
         "city_request": "Қай қаладансыз?",
         "occupation_request": "Кәсібіңіз немесе салаңыз қандай?",
         "invalid_name": "Аты тым қысқа. Қайта енгізіңіз:",
-        "phone_request": "Енді телефон нөміріңізді жіберіңіз 👇",
+        "phone_request": (
+            "📱 <b>Телефон нөміріңізді жіберіңіз:</b>\n\n"
+            "Төмендегі «📱 Нөмірді жіберу» түймесін басыңыз немесе нөміріңізді жазыңыз (мысалы: <code>+998901234567</code>).\n\n"
+            "🔒 <i><b>Қауіпсіздік кепілдігі:</b> Сіздің нөміріңіз тек борышқор мен несие берушіні байланыстыру үшін қолданылады. Бот құпия сөздер мен банк карталарына қол жеткізе алмайды.</i>"
+        ),
         "send_contact_btn": "📱 Нөмірді жіберу",
         "invalid_phone": "Өтінеміз, «📱 Нөмірді жіберу» түймесі арқылы контакт жіберіңіз.",
         "invalid_contact": "Өз контактіңізді жіберіңіз, басқа адамдікін емес.",
@@ -605,7 +617,11 @@ TEXTS = {
         "city_request": "Which city are you from?",
         "occupation_request": "What is your profession or occupation?",
         "invalid_name": "Name is too short. Please try again:",
-        "phone_request": "Now send your phone number 👇",
+        "phone_request": (
+            "📱 <b>Send your phone number:</b>\n\n"
+            "Click the «📱 Send Contact» button below or type your number (e.g., <code>+998901234567</code>).\n\n"
+            "🔒 <i><b>Security Guarantee:</b> Your number is only used for identifying debt records between parties. The bot has no access to personal passwords or bank cards.</i>"
+        ),
         "send_contact_btn": "📱 Send Contact",
         "invalid_phone": "Please use the «📱 Send Contact» button.",
         "invalid_contact": "Please send your own contact.",
