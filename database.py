@@ -160,6 +160,22 @@ def update_user_language(user_id: int, language: str) -> None:
     db.reference(f"{USERS_REF}/{uid_str}/language").set(language)
 
 
+def delete_user(user_id: int) -> None:
+    uid_str = str(user_id)
+    user = _USERS_CACHE.pop(uid_str, None) or db.reference(f"{USERS_REF}/{uid_str}").get()
+    _USER_LANGS.pop(uid_str, None)
+    if user:
+        phone = normalize_phone(user.get("phone_number", ""))
+        username = str(user.get("username", "")).lstrip("@").lower()
+        if phone:
+            _PHONES_CACHE.pop(phone, None)
+            db.reference(f"phones/{phone}").delete()
+        if username:
+            _USERNAMES_CACHE.pop(username, None)
+            db.reference(f"usernames/{username}").delete()
+    db.reference(f"{USERS_REF}/{uid_str}").delete()
+
+
 def get_user_language(user_id: int) -> str:
     uid_str = str(user_id)
     if uid_str in _USER_LANGS:

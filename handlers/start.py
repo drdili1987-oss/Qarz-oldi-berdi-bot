@@ -75,6 +75,7 @@ async def cmd_start_deeplink(
 
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext) -> None:
+    await state.clear()
     user_id = message.from_user.id
     if db.user_exists(user_id):
         lang = db.get_user_language(user_id)
