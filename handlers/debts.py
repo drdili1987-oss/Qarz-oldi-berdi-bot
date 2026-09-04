@@ -95,10 +95,26 @@ async def process_invite_friends(callback: CallbackQuery) -> None:
     bot_username = BOT_USERNAME or "qarzoldiberdi_bot"
     
     invite_url = f"https://t.me/{bot_username}?start=ref_{user_id}"
-    invite_msg = (
-        f"Salom! Qarz va pullarni oson hisob-kitob qilish uchun «Temir Daftar» botiga kiring:\n"
-        f"👉 {invite_url}"
-    )
+    if lang == "ru":
+        invite_msg = (
+            f"Здравствуйте! Для удобного учета долгов и взаиморасчетов используйте бота «Temir Daftar»:\n"
+            f"👉 {invite_url}"
+        )
+    elif lang == "kk":
+        invite_msg = (
+            f"Ассалаумағалейкум! Қарыздарды оңай есептеу үшін «Temir Daftar» ботына қосылыңыз:\n"
+            f"👉 {invite_url}"
+        )
+    elif lang == "en":
+        invite_msg = (
+            f"Hello! Use the «Temir Daftar» bot for easy debt tracking and records:\n"
+            f"👉 {invite_url}"
+        )
+    else:
+        invite_msg = (
+            f"Assalomu Alaykum! Qarz va pullarni oson hisob-kitob qilish uchun «Temir Daftar» botiga kiring:\n"
+            f"👉 {invite_url}"
+        )
     encoded_text = urllib.parse.quote_plus(invite_msg)
     share_url = f"https://t.me/share/url?url={urllib.parse.quote_plus(invite_url)}&text={encoded_text}"
     
