@@ -1,5 +1,6 @@
 import csv
 import io
+import json
 import re
 from datetime import datetime
 from typing import Optional
@@ -39,7 +40,8 @@ async def cmd_admin_help(message: Message) -> None:
         "👑 <b>Admin boshqaruv paneli buyruqlari:</b>\n\n"
         "📊 /stats — Umumiy statistika va aylanma\n"
         "👥 /users — Foydalanuvchilar ro'yxati\n"
-        "📥 /export_users — Barcha foydalanuvchilarni Excel/CSV faylda yuklab olish\n"
+        "📥 /export_users — Foydalanuvchilarni Excel/CSV faylda yuklab olish\n"
+        "💾 /backup — To'liq bazani (JSON) zaxira nusxasini yuklab olish\n"
         "🔍 /find &lt;so'rov&gt; — Foydalanuvchini telefon, username yoki ism orqali qidirish\n"
         "📢 /broadcast — Barcha foydalanuvchilarga ommaviy xabar yuborish"
     )
@@ -84,9 +86,60 @@ async def cmd_stats(message: Message) -> None:
         inline_keyboard=[
             [InlineKeyboardButton(text="👥 Foydalanuvchilar ro'yxati", callback_data="admin_view_users")],
             [InlineKeyboardButton(text="📥 Excel (CSV) yuklab olish", callback_data="admin_export_users")],
+            [InlineKeyboardButton(text="💾 To'liq baza zaxirasi (Backup)", callback_data="admin_backup")],
         ]
     )
     await message.answer(text, reply_markup=kb)
+
+
+@router.message(Command("backup"))
+@router.callback_query(F.data == "admin_backup")
+async def cmd_backup(event: Message | CallbackQuery) -> None:
+    user_id = event.from_user.id
+    if not _is_admin(user_id):
+        if isinstance(event, CallbackQuery):
+            await event.answer("Ruxsat berilmagan!", show_alert=True)
+        return
+
+    users = db.get_all_users()
+    debts = db.get_all_debts()
+    history = db.get_all_history()
+    stats = db.get_stats()
+
+    backup_dict = {
+        "project": "Qarz Oldi-Berdi (Temir Daftar)",
+        "backup_date_utc": datetime.now().isoformat(),
+        "stats_summary": {
+            "total_users": len(users),
+            "active_debts_count": stats.get("active_debts_count", 0),
+            "total_uzs": stats.get("total_uzs", 0),
+            "total_usd": stats.get("total_usd", 0),
+        },
+        "users": users,
+        "debts": debts,
+        "history": history,
+    }
+
+    json_str = json.dumps(backup_dict, indent=2, ensure_ascii=False)
+    file_bytes = json_str.encode("utf-8")
+    now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    doc = BufferedInputFile(file_bytes, filename=f"qarzbot_backup_{now_str}.json")
+
+    caption = (
+        f"💾 <b>To'liq baza zaxira nusxasi (Backup)</b>\n\n"
+        f"📅 <b>Sana:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"👥 <b>Foydalanuvchilar:</b> {len(users)} ta\n"
+        f"💳 <b>Qarz yozuvlari:</b> {len(debts)} ta\n"
+        f"📊 <b>Amallar tarixi:</b> {len(history)} ta\n"
+        f"💰 <b>Faol aylanma:</b> {db.format_amount(stats['total_uzs'])} UZS / {db.format_amount(stats['total_usd'])} USD\n\n"
+        f"<i>Ushbu fayl Google Firebase bazasining 100% to'liq nusxasi hisoblanadi.</i>"
+    )
+
+    if isinstance(event, CallbackQuery):
+        await event.message.answer_document(document=doc, caption=caption)
+        await event.answer()
+    else:
+        await event.answer_document(document=doc, caption=caption)
 
 
 @router.message(Command("users"))
@@ -119,7 +172,8 @@ async def cmd_users(event: Message | CallbackQuery) -> None:
 
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="📥 To'liq ro'yxatni Excel (CSV) da yuklab olish", callback_data="admin_export_users")]
+            [InlineKeyboardButton(text="📥 Excel (CSV) yuklab olish", callback_data="admin_export_users")],
+            [InlineKeyboardButton(text="💾 To'liq Backup (JSON)", callback_data="admin_backup")],
         ]
     )
 
