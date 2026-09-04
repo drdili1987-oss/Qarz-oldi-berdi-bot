@@ -4,11 +4,6 @@ from aiogram.fsm.state import State, StatesGroup
 class Registration(StatesGroup):
     choosing_language = State()
     entering_name = State()
-    entering_age = State()
-    choosing_gender = State()
-    entering_country = State()
-    entering_city = State()
-    entering_occupation = State()
     entering_phone = State()
 
 

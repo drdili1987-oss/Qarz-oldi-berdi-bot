@@ -1,11 +1,12 @@
 import re
+import urllib.parse
 from typing import Optional
 
 from aiogram import Bot, F, Router
 from aiogram.enums import ContentType
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 import database as db
 from config import BOT_USERNAME
@@ -86,18 +87,34 @@ async def settings_change_language(callback: CallbackQuery) -> None:
     )
     await callback.answer()
 
+
 @router.callback_query(F.data == "invite_friends")
 async def process_invite_friends(callback: CallbackQuery) -> None:
     user_id = callback.from_user.id
-    bot_username = BOT_USERNAME or "bot"
+    lang = db.get_user_language(user_id)
+    bot_username = BOT_USERNAME or "qarzoldiberdi_bot"
     
-    invite_text = f"Salom! Qarz va pullarni oson hisob-kitob qilish uchun Qarzbot'ga kiring: https://t.me/{bot_username}?start=ref_{user_id}"
-    msg_text = (
-        "Matnni ustiga bitta bosib nusxalang va do'stlaringizga (Telegram, SMS yoki boshqa joyda) yuboring:\n\n"
-        f"`{invite_text}`"
+    invite_url = f"https://t.me/{bot_username}?start=ref_{user_id}"
+    invite_msg = (
+        f"Salom! Qarz va pullarni oson hisob-kitob qilish uchun «Temir Daftar» botiga kiring:\n"
+        f"👉 {invite_url}"
+    )
+    encoded_text = urllib.parse.quote_plus(invite_msg)
+    share_url = f"https://t.me/share/url?url={urllib.parse.quote_plus(invite_url)}&text={encoded_text}"
+    
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🚀 Telegramda ulashish", url=share_url)],
+            [InlineKeyboardButton(text=TEXTS[lang].get("btn_main_menu", "🏠 Asosiy menyu"), callback_data="to_main_menu")],
+        ]
     )
     
-    await callback.message.answer(msg_text, parse_mode="Markdown")
+    msg_text = (
+        "👥 <b>Do'stlarga ulashish</b>\n\n"
+        "Quyidagi matnni nusxalashingiz yoki «🚀 Telegramda ulashish» tugmasi orqali do'stlaringizga yuborishingiz mumkin:\n\n"
+        f"<code>{invite_msg}</code>"
+    )
+    await callback.message.answer(msg_text, parse_mode="HTML", reply_markup=kb)
     await callback.answer()
 
 
@@ -128,6 +145,7 @@ async def show_creditors(message: Message, state: FSMContext) -> None:
         return
 
     lines = [TEXTS[lang]["creditors_title"]]
+    pending_list = []
     for d in debts:
         creditor = db.get_user(d["creditor_id"]) if d.get("creditor_id") else None
         if creditor:
@@ -141,8 +159,10 @@ async def show_creditors(message: Message, state: FSMContext) -> None:
         )
         desc_text = f" — <i>{d['description']}</i>" if d.get("description") else ""
         lines.append(f"• {name}: {db.format_amount(d['amount'])} {d['currency']} [{status_text}]{desc_text}")
+        if d.get("status") == "pending":
+            pending_list.append({"debt_id": d["debt_id"], "name": name, "amount": d["amount"], "currency": d["currency"]})
 
-    await message.answer("\n".join(lines), reply_markup=add_button_keyboard(lang, "creditor"))
+    await message.answer("\n".join(lines), reply_markup=add_button_keyboard(lang, "creditor", pending_debts=pending_list))
 
 
 @router.message(F.text.in_(ALL_BTN_DEBTORS))
@@ -157,6 +177,7 @@ async def show_debtors(message: Message, state: FSMContext) -> None:
         return
 
     lines = [TEXTS[lang]["debtors_title"]]
+    pending_list = []
     for d in debts:
         debtor = db.get_user(d["debtor_id"]) if d.get("debtor_id") else None
         if debtor:
@@ -170,8 +191,10 @@ async def show_debtors(message: Message, state: FSMContext) -> None:
         )
         desc_text = f" — <i>{d['description']}</i>" if d.get("description") else ""
         lines.append(f"• {name}: {db.format_amount(d['amount'])} {d['currency']} [{status_text}]{desc_text}")
+        if d.get("status") == "pending":
+            pending_list.append({"debt_id": d["debt_id"], "name": name, "amount": d["amount"], "currency": d["currency"]})
 
-    await message.answer("\n".join(lines), reply_markup=add_button_keyboard(lang, "debtor"))
+    await message.answer("\n".join(lines), reply_markup=add_button_keyboard(lang, "debtor", pending_debts=pending_list))
 
 
 @router.message(F.text.in_(ALL_BTN_HISTORY))
@@ -592,7 +615,14 @@ async def add_debt_due_date(message: Message, state: FSMContext, bot: Bot) -> No
         )
         try:
             await bot.send_message(int(target_id), text, reply_markup=debt_confirm_keyboard(other_lang, debt_id))
+            cancel_kb = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="❌ So'rovni bekor qilish", callback_data=f"debt_cancel_creator_{debt_id}")],
+                    [InlineKeyboardButton(text=TEXTS[lang].get("btn_main_menu", "🏠 Asosiy menyu"), callback_data="to_main_menu")],
+                ]
+            )
             await message.answer(TEXTS[lang]["debt_request_sent"], reply_markup=main_menu_keyboard(lang))
+            await message.answer("So'rov holati: ⏳ Tasdiqlanishi kutilmoqda", reply_markup=cancel_kb)
         except Exception:
             await message.answer(
                 TEXTS[lang]["debt_request_send_failed"], reply_markup=main_menu_keyboard(lang)
@@ -629,7 +659,7 @@ async def add_debt_due_date(message: Message, state: FSMContext, bot: Bot) -> No
                     else:
                         db.set_debt_creditor(debt_id, found_uid)
 
-                kb = share_debt_keyboard(link, pm_text, target_phone or "", lang=lang)
+                kb = share_debt_keyboard(link, pm_text, target_phone or "", lang=lang, debt_id=debt_id)
                 await message.answer(
                     f"✅ <b>Foydalanuvchining Telegram shaxsiy chatiga (lichkasiga) taklif xabari yuborildi!</b>{desc_line}{due_line}\n\n"
                     f"U botga kirib tasdiqlagach, qarz faol holatga o'tadi.\n\n"
@@ -645,7 +675,7 @@ async def add_debt_due_date(message: Message, state: FSMContext, bot: Bot) -> No
                     f"Tasdiqlash uchun botga kiring: {link}"
                 )
                 ok, res = await sms_service.send_sms(target_phone, sms_text)
-                kb = share_debt_keyboard(link, sms_text, target_phone, lang=lang)
+                kb = share_debt_keyboard(link, sms_text, target_phone, lang=lang, debt_id=debt_id)
                 if ok:
                     await message.answer(
                         TEXTS[lang]["sms_sent"].format(phone=target_phone, link=link),
@@ -663,12 +693,50 @@ async def add_debt_due_date(message: Message, state: FSMContext, bot: Bot) -> No
                     f"Qarz Oldi-Berdi: {req_name} sizga {db.format_amount(amount)} {currency} qarz kiritdi.{desc_sms}{due_sms}\n"
                     f"Tasdiqlash: {link}"
                 )
-                kb = share_debt_keyboard(link, share_text, target_phone or "", lang=lang)
+                kb = share_debt_keyboard(link, share_text, target_phone or "", lang=lang, debt_id=debt_id)
                 await message.answer(
                     TEXTS[lang]["debt_link_generated"].format(link=link),
                     reply_markup=main_menu_keyboard(lang),
                 )
                 await message.answer("Tezkor amallar:", reply_markup=kb)
+
+
+@router.callback_query(F.data.startswith("debt_cancel_creator_"))
+async def cancel_pending_debt_by_creator(callback: CallbackQuery) -> None:
+    debt_id = callback.data.replace("debt_cancel_creator_", "", 1)
+    user_id = callback.from_user.id
+    lang = db.get_user_language(user_id)
+
+    debt = db.get_debt(debt_id)
+    if not debt:
+        await callback.answer("Bu qarz topilmadi yoki allaqachon bekor qilingan.", show_alert=True)
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
+        return
+
+    # Faqat qarz yaratuvchisi va faqat pending holatda bekor qila oladi
+    if str(debt.get("debtor_id")) != str(user_id) and str(debt.get("creditor_id")) != str(user_id):
+        await callback.answer("Siz ushbu so'rovni bekor qila olmaysiz.", show_alert=True)
+        return
+
+    if debt.get("status") != "pending":
+        await callback.answer("Ushbu qarz allaqachon tasdiqlangan yoki yopilgan.", show_alert=True)
+        return
+
+    db.delete_debt(debt_id)
+    await callback.answer("✅ Qarz so'rovi bekor qilindi!", show_alert=True)
+    try:
+        await callback.message.edit_text(
+            f"❌ <b>Qarz so'rovi bekor qilindi va o'chirildi.</b>\nMiqdor: {db.format_amount(debt['amount'])} {debt['currency']}",
+            reply_markup=main_menu_inline_keyboard(lang)
+        )
+    except Exception:
+        await callback.message.answer(
+            f"❌ <b>Qarz so'rovi bekor qilindi va o'chirildi.</b>\nMiqdor: {db.format_amount(debt['amount'])} {debt['currency']}",
+            reply_markup=main_menu_keyboard(lang)
+        )
 
 
 @router.callback_query(F.data.startswith("debt_confirm_"))
@@ -771,4 +839,6 @@ async def reject_debt(callback: CallbackQuery, bot: Bot) -> None:
             )
         except Exception:
             pass
+
+
 

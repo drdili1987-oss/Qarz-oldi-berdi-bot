@@ -47,14 +47,16 @@ def payment_confirm_keyboard(lang: str, debt_id: str, amount: float) -> InlineKe
     )
 
 
-def add_button_keyboard(lang: str, role: str) -> InlineKeyboardMarkup:
-    t = TEXTS[lang]
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=t["btn_add_new"], callback_data=f"add_debt_{role}")],
-            [InlineKeyboardButton(text=t.get("btn_main_menu", "🏠 Asosiy menyu"), callback_data="to_main_menu")],
-        ]
-    )
+def add_button_keyboard(lang: str, role: str, pending_debts: list = None) -> InlineKeyboardMarkup:
+    t = TEXTS.get(lang, TEXTS["uz"])
+    rows = []
+    if pending_debts:
+        for p in pending_debts:
+            btn_text = f"❌ Bekor qilish: {p['name']} ({db.format_amount(p['amount'])} {p['currency']})"
+            rows.append([InlineKeyboardButton(text=btn_text, callback_data=f"debt_cancel_creator_{p['debt_id']}")])
+    rows.append([InlineKeyboardButton(text=t["btn_add_new"], callback_data=f"add_debt_{role}")])
+    rows.append([InlineKeyboardButton(text=t.get("btn_main_menu", "🏠 Asosiy menyu"), callback_data="to_main_menu")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def person_list_keyboard(people: list, prefix: str, lang: str = "uz") -> InlineKeyboardMarkup:
@@ -88,7 +90,7 @@ def broadcast_confirm_keyboard(lang: str) -> InlineKeyboardMarkup:
     )
 
 
-def share_debt_keyboard(link: str, text: str, phone: str = "", lang: str = "uz") -> InlineKeyboardMarkup:
+def share_debt_keyboard(link: str, text: str, phone: str = "", lang: str = "uz", debt_id: str = "") -> InlineKeyboardMarkup:
     import urllib.parse
     t = TEXTS.get(lang, TEXTS["uz"])
     
@@ -103,14 +105,17 @@ def share_debt_keyboard(link: str, text: str, phone: str = "", lang: str = "uz")
     buttons = [
         [InlineKeyboardButton(text="✈️ Telegramda ulashish", url=share_url)],
         [InlineKeyboardButton(text="📱 SMS orqali ulashish", url=sms_url)],
-        [InlineKeyboardButton(text=t.get("btn_main_menu", "🏠 Asosiy menyu"), callback_data="to_main_menu")],
     ]
+    if debt_id:
+        buttons.append([InlineKeyboardButton(text=t.get("btn_cancel_pending", "❌ So'rovni bekor qilish"), callback_data=f"debt_cancel_creator_{debt_id}")])
+    buttons.append([InlineKeyboardButton(text=t.get("btn_main_menu", "🏠 Asosiy menyu"), callback_data="to_main_menu")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def settings_keyboard(lang: str = "uz", user_id: int = None) -> InlineKeyboardMarkup:
     t = TEXTS.get(lang, TEXTS["uz"])
     buttons = [
+        [InlineKeyboardButton(text=t.get("btn_invite_friends", "👥 Do'stlarga ulashish"), callback_data="invite_friends")],
         [InlineKeyboardButton(text=t["btn_change_language"], callback_data="settings_change_language")],
         [InlineKeyboardButton(text=t.get("btn_main_menu", "🏠 Asosiy menyu"), callback_data="to_main_menu")]
     ]
