@@ -46,15 +46,20 @@ async def _check_and_notify(bot: Bot) -> None:
         should_notify = False
 
         if due_date_str:
-            # Muddat bor bo'lsa
+            # Muddat bor bo'lsa (DD.MM.YYYY yoki YYYY-MM-DD)
             try:
-                due_date_obj = datetime.strptime(due_date_str, "%Y-%m-%d").date()
+                clean_due = due_date_str.replace("/", ".").replace("-", ".")
+                parts = clean_due.split(".")
+                if len(parts) == 3 and len(parts[0]) == 4:
+                    due_date_obj = datetime.strptime(clean_due, "%Y.%m.%d").date()
+                else:
+                    due_date_obj = datetime.strptime(clean_due, "%d.%m.%Y").date()
                 days_left = (due_date_obj - now_date).days
 
                 # Eslatma kunlari: 10, 3, 1, 0, yoki muddat o'tib ketgan bo'lsa (< 0) har kuni
                 if days_left in [10, 3, 1, 0] or days_left < 0:
                     should_notify = True
-            except ValueError:
+            except (ValueError, Exception):
                 should_notify = False
         else:
             # Muddat yo'q bo'lsa, eski mantiq bo'yicha (har REMINDER_INTERVAL_DAYS kunda)

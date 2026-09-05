@@ -555,7 +555,7 @@ async def add_debt_description(message: Message, state: FSMContext, bot: Bot) ->
     await state.set_state(AddDebt.entering_due_date)
     
     from keyboards.default import due_date_keyboard
-    await message.answer(TEXTS[lang].get("enter_due_date", "Qarz qaytarish muddatini tanlang yoki YYYY-MM-DD formatida kiriting (masalan: 2026-12-31):"), reply_markup=due_date_keyboard(lang))
+    await message.answer(TEXTS[lang].get("enter_due_date", "Qarz qaytarish muddatini tanlang yoki KK.OO.YYYY formatida kiriting (masalan: 31.12.2026):"), reply_markup=due_date_keyboard(lang))
 
 @router.message(AddDebt.entering_due_date, F.text)
 async def add_debt_due_date(message: Message, state: FSMContext, bot: Bot) -> None:
@@ -577,18 +577,30 @@ async def add_debt_due_date(message: Message, state: FSMContext, bot: Bot) -> No
     from datetime import datetime, timedelta
     now = datetime.now()
     
-    if text == TEXTS[lang].get("btn_1_week", "1 hafta"):
-        due_date = (now + timedelta(days=7)).strftime("%Y-%m-%d")
-    elif text == TEXTS[lang].get("btn_1_month", "1 oy"):
-        due_date = (now + timedelta(days=30)).strftime("%Y-%m-%d")
-    elif text == TEXTS[lang].get("btn_no_due_date", "Muddat yo'q") or text in ALL_BTN_SKIP:
+    if text == TEXTS[lang].get("btn_1_week", "1 hafta") or text in ["1 hafta", "1 неделя", "1 апта", "1 week"]:
+        due_date = (now + timedelta(days=7)).strftime("%d.%m.%Y")
+    elif text == TEXTS[lang].get("btn_1_month", "1 oy") or text in ["1 oy", "1 месяц", "1 ай", "1 month"]:
+        due_date = (now + timedelta(days=30)).strftime("%d.%m.%Y")
+    elif text == TEXTS[lang].get("btn_no_due_date", "Muddat yo'q") or text in ALL_BTN_SKIP or text in ["Muddat yo'q", "Без срока", "Мерзімсіз", "No due date"]:
         due_date = None
     else:
-        try:
-            parsed = datetime.strptime(text, "%Y-%m-%d")
-            due_date = parsed.strftime("%Y-%m-%d")
-        except ValueError:
-            await message.answer("Noto'g'ri format. Iltimos quyidagi tugmalardan foydalaning yoki YYYY-MM-DD formatida kiriting:")
+        clean_date_text = text.replace("/", ".").replace("-", ".")
+        parsed = None
+        for fmt in ("%d.%m.%Y", "%Y.%m.%d"):
+            try:
+                parsed = datetime.strptime(clean_date_text, fmt)
+                break
+            except ValueError:
+                pass
+
+        if parsed:
+            due_date = parsed.strftime("%d.%m.%Y")
+        else:
+            invalid_msg = TEXTS[lang].get(
+                "invalid_due_date",
+                "Noto'g'ri sana formati. Iltimos, muddatni KK.OO.YYYY formatida kiriting (masalan: 31.12.2026) yoki quyidagi tugmalardan birini tanlang:"
+            )
+            await message.answer(invalid_msg, reply_markup=due_date_keyboard(lang))
             return
 
     data = await state.get_data()
